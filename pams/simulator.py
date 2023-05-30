@@ -39,15 +39,15 @@ class Simulator:
              `prng` should not be shared with other classes and be used only in this class.
              It is because sometimes agent process runs one of parallelized threads.
         """
-        self._prng = prng
-        self.logger: Optional[Logger] = logger
+        self._prng = prng  # 随机数生成器对象
+        self.logger: Optional[Logger] = logger  # 日志记录器对象
         if self.logger is not None:
             self.logger._set_simulator(simulator=self)
 
-        self.n_events: int = 0
-        self.events: List[EventABC] = []
-        self.id2event: Dict[int, EventABC] = {}
-        self.event_hooks: List[EventHook] = []
+        self.n_events: int = 0  # 事件的数量
+        self.events: List[EventABC] = []  # 事件列表
+        self.id2event: Dict[int, EventABC] = {}  # 事件ID到事件对象的映射字典
+        self.event_hooks: List[EventHook] = []  # 事件钩子列表
         self.events_dict: Dict[str, Dict[Optional[int], List[EventHook]]] = {
             "order_before": {},
             "order_after": {},
@@ -58,33 +58,34 @@ class Simulator:
             "session_after": {},
             "market_before": {},
             "market_after": {},
-        }
-        self.name2event: Dict[str, EventABC] = {}
+        }  # 按类型和时间组织的事件钩子的嵌套字典
+        self.name2event: Dict[str, EventABC] = {}  # 事件名称到事件对象的映射字典
 
-        self.n_agents: int = 0
-        self.agents: List[Agent] = []
-        self.high_frequency_agents: List[Agent] = []
-        self.normal_frequency_agents: List[Agent] = []
-        self.id2agent: Dict[int, Agent] = {}
-        self.name2agent: Dict[str, Agent] = {}
-        self.agents_group_name2agent: Dict[str, List[Agent]] = {}
+        self.n_agents: int = 0  # 代理的数量
+        self.agents: List[Agent] = []  # 代理列表
+        self.high_frequency_agents: List[Agent] = []  # 高频代理列表
+        self.normal_frequency_agents: List[Agent] = []  # 普通代理列表
+        self.id2agent: Dict[int, Agent] = {}  # 代理ID到代理对象的映射字典
+        self.name2agent: Dict[str, Agent] = {}  # 代理名称到代理对象的映射字典
+        self.agents_group_name2agent: Dict[str, List[Agent]] = {}  # 代理组名到代理列表的映射字典
 
-        self.n_markets: int = 0
-        self.markets: List[Market] = []
-        self.id2market: Dict[int, Market] = {}
-        self.name2market: Dict[str, Market] = {}
-        self.markets_group_name2market: Dict[str, List[Market]] = {}
+        self.n_markets: int = 0  # 市场的数量
+        self.markets: List[Market] = []  # 市场列表
+        self.id2market: Dict[int, Market] = {}  # 市场ID到市场对象的映射字典
+        self.name2market: Dict[str, Market] = {}  # 市场名称到市场对象的映射字典
+        self.markets_group_name2market: Dict[str, List[Market]] = {}  # 市场组名到市场列表的映射字典
 
         self.fundamentals = fundamental_class(
             prng=random.Random(self._prng.randint(0, 2**31))
-        )
+        )  # 基本面类对象，用于计算资产的基本价值
 
-        self.n_sessions: int = 0
-        self.sessions: List[Session] = []
-        self.id2session: Dict[int, Session] = {}
-        self.name2session: Dict[str, Session] = {}
-        self.current_session: Optional[Session] = None
+        self.n_sessions: int = 0  # 会话的数量
+        self.sessions: List[Session] = []  # 会话列表
+        self.id2session: Dict[int, Session] = {}  # 会话ID到会话对象的映射字典
+        self.name2session: Dict[str, Session] = {}  # 会话名称到会话对象的映射字典
+        self.current_session: Optional[Session] = None  # 当前会话对象。如果未设置，则为None
 
+    # 向事件钩子列表中添加事件钩子（将事件对象添加到模拟器中）
     def _add_event(self, event_hook: EventHook) -> None:
         """add event to the simulator. (Usually, this is called from runner.)
 
@@ -94,17 +95,22 @@ class Simulator:
         Returns:
             None
         """
-        if event_hook in self.event_hooks:
+        if event_hook in self.event_hooks:  # 检查该事件钩子是否已经注册
             raise ValueError("event_hook is already registered")
         event = event_hook.event
         if event_hook.event not in self.events:
             self.events.append(event)
         self.n_events += 1
+        # 将事件id和事件名称添加到相应的字典中，方便以后的查找
         if event_hook.event.event_id not in self.id2event:
             self.id2event[event.event_id] = event
         if event_hook.event.name not in self.name2event:
             self.name2event[event.name] = event
+        # 将事件钩子添加到事件钩子列表中
         self.event_hooks.append(event_hook)
+        # 根据事件钩子的类型和时机（before或after）
+        # 确定要将事件钩子添加到哪个字典(按类型和时间组织的事件钩子的嵌套字典)中
+        # 并将其添加到该字典中
         register_name: str = event_hook.hook_type + (
             "_before" if event_hook.is_before else "_after"
         )
@@ -118,6 +124,7 @@ class Simulator:
                 self.events_dict[register_name][time_] = []
             self.events_dict[register_name][time_].append(event_hook)
 
+    # 向市场列表中添加新的市场（将市场对象添加到模拟器中）
     def _add_market(self, market: Market, group_name: Optional[str] = None) -> None:
         """add market to the simulator. (Usually, this is called from runner.)
 
@@ -128,21 +135,27 @@ class Simulator:
         Returns:
             None
         """
+        # market：要添加的市场
+        # group_name：要将市场添加到的市场组名称（如果不提供该参数，则将市场添加到默认的市场组中）
         if market in self.markets:
             raise ValueError("market is already registered")
+        # 检查新市场的ID和名称是否已经在列表中出现
         if market.market_id in self.id2market:
             raise ValueError(f"market_id {market.market_id} is duplicated")
         if market.name in self.name2market:
             raise ValueError(f"market name {market.name} is duplicate")
-        self.markets.append(market)
-        self.n_markets += 1
+        self.markets.append(market)  # 新市场添加到列表中
+        self.n_markets += 1  # 计数器+1
+        # 建立id、名称与对象的映射关系
         self.id2market[market.market_id] = market
         self.name2market[market.name] = market
+        # 指定了市场组时，将新市场添加到指定组中
         if group_name is not None:
             if group_name not in self.markets_group_name2market:
                 self.markets_group_name2market[group_name] = []
             self.markets_group_name2market[group_name].append(market)
 
+    # 向代理列表中添加代理对象（将代理对象添加到模拟器中）
     def _add_agent(self, agent: Agent, group_name: Optional[str] = None) -> None:
         """add agent to the simulator. (Usually, this is called from runner.)
 
@@ -153,25 +166,30 @@ class Simulator:
         Returns:
             None
         """
+        # 检查代理是否已被注册
         if agent in self.agents:
             raise ValueError("agent is already registered")
         if agent.agent_id in self.id2agent:
             raise ValueError(f"agent_id {agent.agent_id} is duplicated")
         if agent.name in self.name2agent:
             raise ValueError(f"agent name {agent.name} is duplicate")
-        self.agents.append(agent)
-        self.n_agents += 1
+        self.agents.append(agent)  # 添加到模拟器中
+        self.n_agents += 1  # 计数器+1
+        # 建立id、名称与代理对象的映射关系
         self.id2agent[agent.agent_id] = agent
         self.name2agent[agent.name] = agent
+        # 判断是普通代理还是高频代理，并添加到相应的列表
         if isinstance(agent, HighFrequencyAgent):
             self.high_frequency_agents.append(agent)
         else:
             self.normal_frequency_agents.append(agent)
+        # 指定了分组时，添加到指定组中
         if group_name is not None:
             if group_name not in self.agents_group_name2agent:
                 self.agents_group_name2agent[group_name] = []
             self.agents_group_name2agent[group_name].append(agent)
 
+    # 向会话列表中添加会话对象（将会话对象添加到模拟器中）
     def _add_session(self, session: Session) -> None:
         """add session to the simulator. (Usually, this is called from runner.)
 
@@ -181,17 +199,21 @@ class Simulator:
         Returns:
             None
         """
+        # 检查会话是否已被注册
         if session in self.sessions:
             raise ValueError("session is already registered")
         if session.session_id in self.id2session:
             raise ValueError(f"session_id {session.session_id} is duplicated")
         if session.name in self.name2session:
             raise ValueError(f"session name {session.name} is duplicate")
+        # 若未被注册则添加到列表中，并建立映射关系
         self.sessions.append(session)
         self.n_sessions += 1
         self.id2session[session.session_id] = session
         self.name2session[session.name] = session
 
+    # 更新市场的时间和基本面价值（普通市场+指数市场）
+    # （对于指数市场，在更新时间前需要保证组成指数的各个市场的时间都已经被更新）
     def _update_time_on_market(self, market: Market) -> None:
         """update time on the market. (Usually, this is called from runner.)
 
@@ -206,18 +228,19 @@ class Simulator:
             Technically, the fundamental values for components markets can be calculated beforehand, but not allowed to avoid future data leakage.
         """
         if not isinstance(market, IndexMarket):
-            market._update_time(
+            market._update_time(  # 更新当前市场时间与当前市场价格
                 next_fundamental_price=self.fundamentals.get_fundamental_price(
                     market_id=market.market_id, time=market.get_time() + 1
                 )
             )
         else:
-            market._update_time(
-                next_fundamental_price=market.compute_fundamental_index(
+            market._update_time(  # 更新当前市场时间与当前市场价格
+                next_fundamental_price=market.compute_fundamental_index(  # 计算基本指数
                     time=market.get_time() + 1
                 )
             )
 
+    # 更新所给列表中所有市场的时间和基本面价值
     def _update_times_on_markets(self, markets: List[Market]) -> None:
         """update times on markets. (Usually, this is called from runner.)
 
@@ -232,6 +255,7 @@ class Simulator:
         for market in filter(lambda x: isinstance(x, IndexMarket), markets):
             self._update_time_on_market(market=market)
 
+    # 更新代理的资产和现金金额
     def _update_agents_for_execution(
         self, execution_logs: List["ExecutionLog"]  # type: ignore  # NOQA
     ) -> None:
@@ -243,22 +267,25 @@ class Simulator:
         Returns:
             None
         """
+        # 遍历执行日志列表
         for log in execution_logs:
-            buy_agent: Agent = self.id2agent[log.buy_agent_id]
-            sell_agent: Agent = self.id2agent[log.sell_agent_id]
-            price: float = log.price
-            volume: int = log.volume
-            market_id: int = log.market_id
+            buy_agent: Agent = self.id2agent[log.buy_agent_id]  # 买方代理
+            sell_agent: Agent = self.id2agent[log.sell_agent_id]  # 卖方代理
+            price: float = log.price  # 交易价格
+            volume: int = log.volume  # 交易数量
+            market_id: int = log.market_id  # 交易市场ID
+            # 更新代理的信息（现金金额+资产数量）
             buy_agent.cash_amount -= price * volume
             sell_agent.cash_amount += price * volume
             buy_agent.asset_volumes[market_id] += volume
             sell_agent.asset_volumes[market_id] -= volume
 
+    # 检查给定的对象是否满足指定的类和实例要求
     def _check_event_class_and_instance(
         self,
-        check_object: object,
-        class_requirement: Optional[Type] = None,
-        instance_requirement: Optional[object] = None,
+        check_object: object,  # 要检查的对象
+        class_requirement: Optional[Type] = None,  # 要求对象所属的类
+        instance_requirement: Optional[object] = None,  # 要求对象是某个具体实例
     ) -> bool:
         """check event class and instance. (Usually, this is called from runner.)
 
@@ -278,6 +305,7 @@ class Simulator:
                 return False
         return True
 
+    # 在提交订单前触发事件
     def _trigger_event_before_order(self, order: "Order") -> None:  # type: ignore  # NOQA
         """trigger event before order. (Usually, this is called from runner.)
 
@@ -297,6 +325,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_before_order(simulator=self, order=order)
 
+    # 在订单执行完毕后触发事件
     def _trigger_event_after_order(self, order_log: "OrderLog") -> None:  # type: ignore  # NOQA
         """trigger event after order. (Usually, this is called from runner.)
 
@@ -316,6 +345,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_after_order(simulator=self, order_log=order_log)
 
+    # 在撤销订单前触发事件
     def _trigger_event_before_cancel(self, cancel: "Cancel") -> None:  # type: ignore  # NOQA
         """trigger event before cancel. (Usually, this is called from runner.)
 
@@ -335,6 +365,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_before_cancel(simulator=self, cancel=cancel)
 
+    # 在撤销订单后触发事件
     def _trigger_event_after_cancel(self, cancel_log: "CancelLog") -> None:  # type: ignore  # NOQA
         """trigger event after cancel. (Usually, this is called from runner.)
 
@@ -354,6 +385,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_after_cancel(simulator=self, cancel_log=cancel_log)
 
+    # 在订单成交后触发事件
     def _trigger_event_after_execution(self, execution_log: "ExecutionLog") -> None:  # type: ignore  # NOQA
         """trigger event after execution. (Usually, this is called from runner.)
 
@@ -375,6 +407,7 @@ class Simulator:
                 simulator=self, execution_log=execution_log
             )
 
+    # 在会话前触发事件
     def _trigger_event_before_session(self, session: "Session") -> None:  # type: ignore
         """trigger event before session. (Usually, this is called from runner.)
 
@@ -394,6 +427,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_before_session(simulator=self, session=session)
 
+    # 在会话后触发事件
     def _trigger_event_after_session(self, session: "Session") -> None:  # type: ignore
         """trigger event after session. (Usually, this is called from runner.)
 
@@ -413,6 +447,7 @@ class Simulator:
         for event_hook in target_event_hooks:
             event_hook.event.hooked_after_session(simulator=self, session=session)
 
+    # 在市场步骤前触发事件
     def _trigger_event_before_step_for_market(self, market: "Market") -> None:  # type: ignore
         """trigger event before step for market. (Usually, this is called from runner.)
 
@@ -439,6 +474,7 @@ class Simulator:
                     simulator=self, market=market
                 )
 
+    # 在市场步骤后触发事件
     def _trigger_event_after_step_for_market(self, market: "Market") -> None:  # type: ignore
         """trigger event after step for market. (Usually, this is called from runner.)
 

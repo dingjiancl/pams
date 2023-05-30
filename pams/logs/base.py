@@ -3,9 +3,14 @@ from typing import Optional
 
 from pams.order import OrderKind
 
+"""
+定义一个日志系统，记录市场交易过程中发生的各种事件
+"""
+
 
 class Log:
     """Log class."""
+    """日志系统中的基类"""
 
     def read_and_write(self, logger: "Logger") -> None:
         """writing a log. (The actual writing timing depends on the logger.)
@@ -35,18 +40,19 @@ class OrderLog(Log):
 
     This log is usually generated when an order is accepted by markets.
     """
+    """事件：订单被接受"""
 
     def __init__(
-        self,
-        order_id: int,
-        market_id: int,
-        time: int,
-        agent_id: int,
-        is_buy: bool,
-        kind: OrderKind,
-        volume: int,
-        price: Optional[float] = None,
-        ttl: Optional[int] = None,
+            self,
+            order_id: int,
+            market_id: int,
+            time: int,
+            agent_id: int,
+            is_buy: bool,
+            kind: OrderKind,
+            volume: int,
+            price: Optional[float] = None,
+            ttl: Optional[int] = None,
     ):
         """initialize.
 
@@ -78,20 +84,21 @@ class CancelLog(Log):
 
     This log is usually generated when a cancel order is accepted by markets.
     """
+    """事件：取消订单被接受"""
 
     # ToDo: check ttl is necessary or not
     def __init__(
-        self,
-        order_id: int,
-        market_id: int,
-        cancel_time: int,
-        order_time: int,
-        agent_id: int,
-        is_buy: bool,
-        kind: OrderKind,
-        volume: int,
-        price: Optional[float] = None,
-        ttl: Optional[int] = None,
+            self,
+            order_id: int,
+            market_id: int,
+            cancel_time: int,
+            order_time: int,
+            agent_id: int,
+            is_buy: bool,
+            kind: OrderKind,
+            volume: int,
+            price: Optional[float] = None,
+            ttl: Optional[int] = None,
     ):
         """initialize.
 
@@ -125,17 +132,18 @@ class ExecutionLog(Log):
 
     This log is usually generated when an order is executed on markets.
     """
+    """事件：订单被执行"""
 
     def __init__(
-        self,
-        market_id: int,
-        time: int,
-        buy_agent_id: int,
-        sell_agent_id: int,
-        buy_order_id: int,
-        sell_order_id: int,
-        price: float,
-        volume: int,
+            self,
+            market_id: int,
+            time: int,
+            buy_agent_id: int,
+            sell_agent_id: int,
+            buy_order_id: int,
+            sell_order_id: int,
+            price: float,
+            volume: int,
     ):
         """initialize.
 
@@ -162,6 +170,7 @@ class ExecutionLog(Log):
 
 class SimulationBeginLog(Log):
     """Simulation beginning log class."""
+    """事件：模拟开始"""
 
     def __init__(self, simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -174,6 +183,7 @@ class SimulationBeginLog(Log):
 
 class SimulationEndLog(Log):
     """Simulation ending log class."""
+    """事件：模拟结束"""
 
     def __init__(self, simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -186,6 +196,7 @@ class SimulationEndLog(Log):
 
 class SessionBeginLog(Log):
     """Session beginning log class."""
+    """事件：会话开始"""
 
     def __init__(self, session: "Session", simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -200,6 +211,7 @@ class SessionBeginLog(Log):
 
 class SessionEndLog(Log):
     """Session ending log class."""
+    """事件：会话结束"""
 
     def __init__(self, session: "Session", simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -214,6 +226,7 @@ class SessionEndLog(Log):
 
 class MarketStepBeginLog(Log):
     """Market step beginning log class."""
+    """事件：市场交易开始"""
 
     def __init__(self, session: "Session", market: "Market", simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -230,6 +243,7 @@ class MarketStepBeginLog(Log):
 
 class MarketStepEndLog(Log):
     """Market step ending log class."""
+    """事件：市场交易结束"""
 
     def __init__(self, session: "Session", market: "Market", simulator: "Simulator"):  # type: ignore  # NOQA
         """initialize.
@@ -245,6 +259,7 @@ class MarketStepEndLog(Log):
 
 
 class Logger:
+    """日志系统的控制器，用于处理Log实例"""
     """Logger class.
 
     Logger is designed to handling parallelized market simulations.
@@ -285,6 +300,7 @@ class Logger:
         Returns:
             None
         """
+        # 将日志加入待处理队列pending_logs中
         self.pending_logs.append(log)
 
     def bulk_write(self, logs: List["Log"]) -> None:
@@ -307,6 +323,7 @@ class Logger:
         Returns:
             None
         """
+        # 直接将日志写入文件
         self.process(logs=[log])
 
     def bulk_write_and_direct_process(self, logs: List["Log"]) -> None:

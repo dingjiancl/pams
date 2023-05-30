@@ -3,6 +3,7 @@ from typing import Optional
 from typing import Type
 
 
+# 返回与给定名称匹配的类
 def find_class(name: str, optional_class_list: Optional[List[Type]] = None) -> Type:
     """find class from pams name spaces.
 

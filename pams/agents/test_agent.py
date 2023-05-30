@@ -8,6 +8,7 @@ from ..order import Order
 from .base import Agent
 
 
+# 用于测试market的agent：随机生成订单，没有任何策略
 class TestAgent(Agent):
     """TestAgent class
 
@@ -40,13 +41,18 @@ class TestAgent(Agent):
 
         orders: List[Union[Order, Cancel]] = []
         for market in markets:
+            # 如果该代理可以访问该市场
             if self.is_market_accessible(market_id=market.market_id):
+                # 生成一个随机价格
                 price: float = market.get_market_price() + (
                     self.prng.random() * 2 * margin_scale - margin_scale
                 )
+                # 生成随机的订单数量
                 volume: int = self.prng.randint(1, volume_scale)
+                # 订单生命周期的范围
                 time_length: int = self.prng.randint(1, time_length_scale)
-                p = self.prng.random()
+                p = self.prng.random()  # 随机生成一个浮点数p
+                # 生成的买卖订单，并添加到orders列表中
                 if p < buy_chance + sell_chance:
                     orders.append(
                         Order(
@@ -59,4 +65,5 @@ class TestAgent(Agent):
                             ttl=time_length,
                         )
                     )
+        # 返回orders列表
         return orders

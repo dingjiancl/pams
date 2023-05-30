@@ -17,6 +17,8 @@ class MarketStepPrintLogger(Logger):
         Returns:
             None
         """
+        """打印市场的日志信息
+        包括session_id、市场时间、市场ID、市场名称、市场价格和基本价格"""
         print(
             f"{log.session.session_id} {log.market.get_time()} {log.market.market_id} {log.market.name} {log.market.get_market_price()} {log.market.get_fundamental_price()}"
         )
@@ -29,6 +31,7 @@ class MarketStepSaver(Logger):
         super().__init__()
         self.market_step_logs: List[Dict] = []
 
+    # 将市场日志信息保存到market_step_logs列表中
     def process_market_step_end_log(self, log: MarketStepEndLog) -> None:
         """stack the market log.
 

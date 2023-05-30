@@ -17,6 +17,7 @@ from ..order import Order
 from ..utils.json_random import JsonRandom
 
 
+# 名为Agent的抽象基类，代表了市场中的交易代理
 class Agent(ABC):
     """Agent class (abstract class)
 
@@ -29,6 +30,7 @@ class Agent(ABC):
         - :class:`pams.agents.FCNAgent`: FCNAgent
     """
 
+    # 初始化函数
     def __init__(
         self,
         agent_id: int,
@@ -64,12 +66,14 @@ class Agent(ABC):
         self.simulator: "Simulator" = simulator  # type: ignore  # NOQA
         self.logger: Optional[Logger] = logger
 
+    # 代理类的字符串表示形式
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__module__}.{self.__class__.__name__} | id={self.agent_id}, name={self.name}, "
             f"logger={self.logger}>"
         )
 
+    # 初始化代理人在可访问市场的资产数量
     def setup(self, settings: Dict[str, Any], accessible_markets_ids: List[int], *args, **kwargs) -> None:  # type: ignore
         """agent setup. Usually be called from simulator/runner automatically.
 
@@ -89,13 +93,17 @@ class Agent(ABC):
         if "assetVolume" not in settings:
             raise ValueError("cashAmount is required property of agent settings")
 
+        # 在代理人可访问的市场上，为该代理人设置可用资产数量
         for market_id in accessible_markets_ids:
-            self.set_market_accessible(market_id=market_id)
+            self.set_market_accessible(market_id=market_id)  # 将市场标记为可访问的状态（将代理人在指定市场上的资产数量设置为0）
+            # 根据JSON中的"assetVolume"生成随机的资产数量
             volume = int(
                 JsonRandom(prng=self.prng).random(json_value=settings["assetVolume"])
             )
+            # 将生成的资产数量分配给代理人
             self.set_asset_volume(market_id=market_id, volume=volume)
 
+    # 获取代理人在指定市场上持有的资产数量
     def get_asset_volume(self, market_id: int) -> int:
         """getter of the asset volume held by the agent.
 
@@ -109,6 +117,7 @@ class Agent(ABC):
             raise ValueError(f"market {market_id} is not accessible")
         return self.asset_volumes[market_id]
 
+    # 获取代理人的现金数量
     def get_cash_amount(self) -> float:
         """getter of the cash amount held by the agent.
 
@@ -117,6 +126,7 @@ class Agent(ABC):
         """
         return self.cash_amount
 
+    # 获取代理人的伪随机数生成器
     def get_prng(self) -> random.Random:
         """getter of the pseudo random number generator.
 
@@ -125,6 +135,7 @@ class Agent(ABC):
         """
         return self.prng
 
+    # 检查代理人在指定市场上是否可访问
     def is_market_accessible(self, market_id: int) -> bool:
         """determine if the market ID is included in the asset volume
 
@@ -136,6 +147,7 @@ class Agent(ABC):
         """
         return market_id in self.asset_volumes
 
+    # 代理向市场提交订单成功时回调
     def submitted_order(self, log: OrderLog) -> None:
         """call back when an order submission is accepted by a market.
 
@@ -147,6 +159,7 @@ class Agent(ABC):
         """
         pass
 
+    # 代理人的订单被市场执行时回调
     def executed_order(self, log: ExecutionLog) -> None:
         """call back when a submitted order is executed in a market.
 
@@ -158,6 +171,7 @@ class Agent(ABC):
         """
         pass
 
+    # 代理人的取消订单被市场接受时回调
     def canceled_order(self, log: CancelLog) -> None:
         """call back when cancel order is accepted by a market.
 
@@ -169,6 +183,7 @@ class Agent(ABC):
         """
         pass
 
+    # 设置代理人在指定市场上持有的资产数量
     def set_asset_volume(self, market_id: int, volume: int) -> None:
         """setter of the asset volume held by agent.
 
@@ -185,6 +200,7 @@ class Agent(ABC):
             raise ValueError("volume have to be int")
         self.asset_volumes[market_id] = volume
 
+    # 设置代理人的现金数量
     def set_cash_amount(self, cash_amount: float) -> None:
         """setter of the cash amount held by agent.
 
@@ -196,6 +212,7 @@ class Agent(ABC):
         """
         self.cash_amount = cash_amount
 
+    # 将代理人在指定市场上的资产数量设置为0
     def set_market_accessible(self, market_id: int) -> None:
         """set the specified market volume to 0.
 
@@ -209,6 +226,7 @@ class Agent(ABC):
             raise ValueError(f"market {market_id} is already accessible")
         self.asset_volumes[market_id] = 0
 
+    # 代理人提交订单的抽象方法
     @abstractmethod
     def submit_orders(self, markets: List[Market]) -> List[Union[Order, Cancel]]:
         """submit orders (abstract method). This method automatically called from runners.
@@ -227,6 +245,7 @@ class Agent(ABC):
         """
         pass
 
+    # 增加或减少代理人在指定市场上持有的资产数量
     def update_asset_volume(self, market_id: int, delta: int) -> None:
         """increasing or decreasing the asset volume.
 
@@ -243,6 +262,7 @@ class Agent(ABC):
             raise ValueError("delta have to be int")
         self.asset_volumes[market_id] += delta
 
+    # 增加或减少代理的现金数量
     def update_cash_amount(self, delta: float) -> None:
         """increasing or decreasing the cash amount.
 

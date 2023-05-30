@@ -3,11 +3,12 @@ from typing import List
 from typing import Optional
 
 
+# 扫描target_json中的"extends"，将其与对应配置合并以实现扩展
 def json_extends(
-    whole_json: Dict,
-    parent_name: str,
-    target_json: Dict,
-    excludes_fields: Optional[List[str]] = None,
+    whole_json: Dict,  # 整个JSON文件
+    parent_name: str,  # 需要解析的配置字典的名称
+    target_json: Dict,  # 需要解析的配置字典
+    excludes_fields: Optional[List[str]] = None,  # 需要排除的配置字段
 ) -> Dict:
     """extend target json. If "extends" keys are included in target_json, this try to extend the json dict recursively.
      For the extension, the value for "extends" field  is found in whole_json and target_json is extended using the dict under

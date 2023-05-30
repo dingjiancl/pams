@@ -5,6 +5,7 @@ from typing import cast
 
 
 @dataclass(frozen=True)
+# 订单种类
 class OrderKind:
     """Kind of order.
     This class has an order kind ID and an order name.
@@ -17,6 +18,7 @@ class OrderKind:
     kind_id: int
     name: str
 
+    # 返回一个对象的字符串表示形式
     def __repr__(self) -> str:
         """string representation of this class.
 
@@ -25,6 +27,7 @@ class OrderKind:
         """
         return self.name
 
+    # 检查两个对象是否相等，如果相等则返回True，否则返回False
     def __eq__(self, other: object) -> bool:
         """get whether an argument's class is the same as this class or not.
 
@@ -39,6 +42,7 @@ class OrderKind:
         other = cast(OrderKind, other)
         return other.kind_id == self.kind_id
 
+    # 检查两个对象是否不相等，如果不相等则返回True，否则返回False
     def __ne__(self, other: object) -> bool:
         """get whether an argument's class is different from this class or not.
 
@@ -50,6 +54,7 @@ class OrderKind:
         """
         return not self.__eq__(other)
 
+    # 返回一个对象的哈希值，用于在哈希表中查找和比较对象
     def __hash__(self) -> int:
         """get the order kind ID.
 
@@ -59,6 +64,7 @@ class OrderKind:
         return self.kind_id
 
 
+# 两个实例化的OrderKind：市价单和限价单
 MARKET_ORDER = OrderKind(kind_id=0, name="MARKET_ORDER")
 LIMIT_ORDER = OrderKind(kind_id=1, name="LIMIT_ORDER")
 
@@ -91,9 +97,10 @@ class Order:
             order_id (int, Optional): order ID. (Set by market. Please do not set it in agent)
             ttl (int, Optional): time to order expiration.
         """
-        if kind == MARKET_ORDER and price is not None:
+        # ----基于订单种类与特征的一些限制----
+        if kind == MARKET_ORDER and price is not None:  # 如果kind是市价单，那么price必须为None
             raise ValueError("price have to be None when kind is MARKET_ORDER")
-        if kind == LIMIT_ORDER and price is None:
+        if kind == LIMIT_ORDER and price is None:  # 如果kind是限价单，那么price必须是一个正数
             raise ValueError("price have to be set when kind is LIMIT_ORDER")
         if price is not None and price <= 0:
             warnings.warn("price should be positive")
@@ -101,6 +108,7 @@ class Order:
             raise ValueError("volume have to be positive")
         if ttl is not None and ttl <= 0:
             raise ValueError("ttl have to be positive or None")
+        # ----基于订单种类与特征的一些限制</>----
 
         self.agent_id: int = agent_id
         self.market_id: int = market_id
@@ -113,6 +121,7 @@ class Order:
         self.ttl: Optional[int] = ttl
         self.is_canceled: bool = False
 
+    # 检查订单是否可以被系统接受
     def check_system_acceptable(self, agent_id: int) -> None:
         """check system acceptable. (Usually, markets automatically check it.)
 
@@ -131,6 +140,7 @@ class Order:
         if self.is_canceled is True:
             raise AttributeError("this order is already canceled")
 
+    # 判断订单是否过期
     def is_expired(self, time: int) -> bool:
         """get whether the order is expired or not.
 
@@ -147,6 +157,7 @@ class Order:
         else:
             return self.placed_at + self.ttl < time
 
+    # 生成一个表示该订单的字符串
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__module__}.{self.__class__.__name__} | id={self.order_id}, kind={self.kind}, "
@@ -154,6 +165,7 @@ class Order:
             f"placed_at={self.placed_at}, ttl={self.ttl}, is_canceled={self.is_canceled}>"
         )
 
+    # 比较两个订单的先后顺序
     def _check_comparability(self, other: object) -> None:
         if self.__class__ != other.__class__:
             raise NotImplementedError(
@@ -202,7 +214,7 @@ class Order:
                         (a.order_id > b.order_id) if gt else (a.order_id < b.order_id)
                     )
 
-        if self.kind == MARKET_ORDER and other.kind == MARKET_ORDER:
+        if self.kind == MARKET_ORDER and other.kind == MARKET_ORDER:  # 如果两个订单都是市价订单，则比较它们被放置的时间
             return _compare_placed_at(a=self, b=other)
         elif self.kind == MARKET_ORDER:
             return False if gt else True
@@ -229,6 +241,10 @@ class Order:
                         )
                 else:
                     return _compare_placed_at(a=self, b=other)
+                # 如果两个订单都是限价订单，则按以下方式比较它们：
+                # 如果当前订单的价格小于另一个订单的价格，且为买单，则返回True
+                # 如果当前订单的价格大于另一个订单的价格，且为卖单，则返回True
+                # 如果两个订单的价格相等，则按它们被放置的时间进行比较
 
     def __gt__(self, other: object) -> bool:
         return self._gt_lt(other, gt=True)
@@ -283,6 +299,7 @@ class Cancel:
         """
         return self.order.market_id
 
+    # 检查撤销订单是否可以被系统接受
     def check_system_acceptable(self, agent_id: int) -> None:
         """check system acceptable. (Usually, markets automatically check it.)
 

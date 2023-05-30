@@ -23,7 +23,7 @@ def main() -> None:
         prng=random.Random(seed) if seed is not None else None,
         logger=MarketStepPrintLogger(),
     )
-    runner.main()
+    runner.main()  # 调用SequentialRunner类中的main方法
 
 
 if __name__ == "__main__":

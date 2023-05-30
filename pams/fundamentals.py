@@ -7,6 +7,12 @@ from typing import Tuple
 import numpy as np
 from scipy.linalg import cholesky
 
+'''
+用于生成和管理多个市场的基本面（fundamental）数据
+指定每个市场的初始价格、漂移（drift）、波动率（volatility）以及它们之间的相关性
+生成未来价格的模拟数据
+'''
+
 
 class Fundamentals:
     """Fundamental generator for simulator."""
@@ -20,27 +26,29 @@ class Fundamentals:
         Returns:
             None
         """
-        self._prng = prng
+        self._prng = prng  # 用来生成随机数的Python内置random.Random对象
+        #  创建的随机数生成器（种子从self._prng获得）
         self._np_prng: np.random.Generator = np.random.default_rng(
-            self._prng.randint(0, 2**31)
+            self._prng.randint(0, 2 ** 31)
         )
-        self.correlation: Dict[Tuple[int, int], float] = {}
-        self.drifts: Dict[int, float] = {}
-        self.volatilities: Dict[int, float] = {}
-        self.prices: Dict[int, List[float]] = {}
-        self.market_ids: List[int] = []
-        self.initials: Dict[int, float] = {}
-        self.start_at: Dict[int, int] = {}
-        self._generated_until: int = 0
-        self._generate_chunk_size = 100
+        self.correlation: Dict[Tuple[int, int], float] = {}  # 市场之间的相关性
+        self.drifts: Dict[int, float] = {}  # 每个市场的漂移
+        self.volatilities: Dict[int, float] = {}  # 每个市场的波动率
+        self.prices: Dict[int, List[float]] = {}  # 每个市场的历史价格数据
+        self.market_ids: List[int] = []  # 已经注册的市场的ID
+        self.initials: Dict[int, float] = {}  # 每个市场的初始价格
+        self.start_at: Dict[int, int] = {}  # 每个市场的历史价格数据开始的时间
+        self._generated_until: int = 0  # 目前已经生成的时间点，用于记录生成价格序列的进度
+        self._generate_chunk_size = 100  # 一次生成价格序列的长度
 
+    # 向Fundamentals中添加一个市场
     def add_market(
-        self,
-        market_id: int,
-        initial: float,
-        drift: float,
-        volatility: float,
-        start_at: int = 0,
+            self,
+            market_id: int,
+            initial: float,
+            drift: float,
+            volatility: float,
+            start_at: int = 0,
     ) -> None:
         """add a market whose fundamental prices are generated in this class.
 
@@ -68,6 +76,7 @@ class Fundamentals:
         self.prices[market_id] = [initial for _ in range(start_at + 1)]
         self._generated_until = min(start_at, self._generated_until)
 
+    # 从Fundamentals中移除一个市场
     def remove_market(self, market_id: int) -> None:
         """remove a market from the list of markets whose fundamental prices are generated in this class.
 
@@ -84,8 +93,9 @@ class Fundamentals:
         self.start_at.pop(market_id)
         self.prices.pop(market_id)
 
+    # 更改指定市场的波动率
     def change_volatility(
-        self, market_id: int, volatility: float, time: int = 0
+            self, market_id: int, volatility: float, time: int = 0
     ) -> None:
         """change volatility.
 
@@ -102,6 +112,7 @@ class Fundamentals:
         self.volatilities[market_id] = volatility
         self._generated_until = time
 
+    # 更改指定市场的漂移
     def change_drift(self, market_id: int, drift: float, time: int = 0) -> None:
         """change drift.
 
@@ -116,8 +127,9 @@ class Fundamentals:
         self.drifts[market_id] = drift
         self._generated_until = time
 
+    # 设置两个市场之间的相关性
     def set_correlation(
-        self, market_id1: int, market_id2: int, corr: float, time: int = 0
+            self, market_id1: int, market_id2: int, corr: float, time: int = 0
     ) -> None:
         """set correlation between fundamental prices of markets.
 
@@ -140,8 +152,9 @@ class Fundamentals:
             self.correlation[(market_id1, market_id2)] = corr
         self._generated_until = time
 
+    # 移除两个市场之间的相关性
     def remove_correlation(
-        self, market_id1: int, market_id2: int, time: int = 0
+            self, market_id1: int, market_id2: int, time: int = 0
     ) -> None:
         """remove correlation.
 
@@ -161,8 +174,11 @@ class Fundamentals:
             self.correlation.pop((market_id1, market_id2))
         self._generated_until = time
 
+    # 为给定的市场id列表生成长度为length的随机对数收益率(log return)矩阵
     def _generate_log_return(
-        self, generate_target_ids: List[int], length: int
+            self, generate_target_ids: List[int], length: int
+            # generate_target_ids：需要生成随机对数收益率的市场id列表
+            # length：需要生成的随机对数收益率矩阵的长度
     ) -> np.ndarray:
         """get log returns. (Internal method)
 
@@ -173,13 +189,14 @@ class Fundamentals:
         Returns:
             np.ndarray: log returns.
         """
-        generate_target_ids_cholesky = list(
+        generate_target_ids_cholesky = list(  # 波动率不为0的市场
             filter(lambda x: self.volatilities[x] != 0.0, generate_target_ids)
         )
-        generate_target_ids_other = list(
+        generate_target_ids_other = list(  # 波动率为0的市场
             filter(lambda x: self.volatilities[x] == 0.0, generate_target_ids)
         )
-        corr_matrix = np.eye(len(generate_target_ids_cholesky))
+        # ----对波动率不为0的市场----
+        corr_matrix = np.eye(len(generate_target_ids_cholesky))  # 相关性矩阵
         for (id1, id2), corr in self.correlation.items():
             if id1 not in generate_target_ids_cholesky:
                 continue
@@ -196,9 +213,9 @@ class Fundamentals:
                 generate_target_ids_cholesky.index(id1),
             ] = corr
         vol = np.asarray([self.volatilities[x] for x in generate_target_ids_cholesky])
-        cov_matrix = vol * corr_matrix * vol.reshape(-1, 1)
+        cov_matrix = vol * corr_matrix * vol.reshape(-1, 1)  # 协方差矩阵
         try:
-            cholesky_matrix = cholesky(cov_matrix, lower=True)
+            cholesky_matrix = cholesky(cov_matrix, lower=True)  # Cholesky矩阵，利用Cholesky分解求出
         except Exception as e:
             print(
                 "Error happened when calculating cholesky matrix for fundamental calculation."
@@ -207,21 +224,24 @@ class Fundamentals:
             )
             raise e
 
-        dw_cholesky = self._np_prng.standard_normal(
+        dw_cholesky = self._np_prng.standard_normal(  # 符合Cholesky分布的随机矩阵（从标准正态分布中生成）
             size=(len(generate_target_ids_cholesky), length)
         )
         drifts_cholesky = np.asarray(
             [self.drifts[x] for x in generate_target_ids_cholesky]
         )
-        result_cholesky = np.dot(
+        result_cholesky = np.dot(  # 随机对数收益率矩阵
             cholesky_matrix, dw_cholesky
         ) + drifts_cholesky.T.reshape(-1, 1)
+        # ----对波动率不为0的市场</>----
 
+        # ----对波动率为0的市场----
         drifts_others = np.asarray(
             [[self.drifts[x] for _ in range(length)] for x in generate_target_ids_other]
-        )
+        )  # 用每个市场的漂移来生成对应长度的随机对数收益率矩阵
+        # ----对波动率为0的市场</>----
 
-        return np.stack(
+        return np.stack(  # 拼接对应的随机对数收益率矩阵，并返回
             [
                 result_cholesky[generate_target_ids_cholesky.index(x)]
                 if x in generate_target_ids_cholesky
@@ -230,36 +250,44 @@ class Fundamentals:
             ]
         )
 
+    # 生成接下来一段时间的市场价格（生成下一批价格序列）
     def _generate_next(self) -> None:
         """execute to next step. (Internal method)
         This method is called by :func:`pams.Fundamentals.get_fundamental_price` or :func:`pams.Fundamentals.get_fundamental_prices`.
         """
-        setting_change_points: List[int] = [
+        setting_change_points: List[int] = [  # 参数改变点的时间列表（所有时间点均大于当前_generated_until的值）
             x for x in self.start_at.values() if x > self._generated_until
         ]
+
+        # 计算length：当前价格序列需要生成的价格个数
         if len(setting_change_points) == 0:
             length = self._generate_chunk_size
         else:
             length = min(setting_change_points) - self._generated_until
-        next_until = self._generated_until + length
-        target_market_ids: List[int] = [
+
+        next_until = self._generated_until + length  # 下一个价格序列的结束时间
+        target_market_ids: List[int] = [  # 需要生成价格序列的市场列表（开始时间早于next_until的市场）
             key for key, value in self.start_at.items() if value < next_until
         ]
-        log_return = self._generate_log_return(
+        log_return = self._generate_log_return(  # 生成对应市场的价格对数收益率序列
             generate_target_ids=target_market_ids, length=length
         )
-        current_prices = np.asarray(
+        current_prices = np.asarray(  # 当前价格序列
             [self.prices[x][self._generated_until] for x in target_market_ids]
         )
+
+        # 计算新的价格序列并更新属性（根据当前价格序列和对数收益率序列计算）
         prices = current_prices.T.reshape(-1, 1) * np.exp(
             np.cumsum(log_return, axis=-1)
         )
         for market_id, price_seq in zip(target_market_ids, prices):
-            self.prices[market_id] = (
-                self.prices[market_id][: self._generated_until + 1] + price_seq.tolist()
+            self.prices[market_id] = (  # 更新对应市场的价格序列
+                    self.prices[market_id][: self._generated_until + 1] + price_seq.tolist()
             )
-        self._generated_until += length
 
+        self._generated_until += length  # 将_generated_until更新为下一个价格序列的结束时间
+
+    # 获取指定市场在给定时间的基本面价格
     def get_fundamental_price(self, market_id: int, time: int) -> float:
         """get a fundamental price.
 
@@ -274,8 +302,9 @@ class Fundamentals:
             self._generate_next()
         return self.prices[market_id][time]
 
+    # 获取指定市场在给定多个时间的基本面价格
     def get_fundamental_prices(
-        self, market_id: int, times: Iterable[int]
+            self, market_id: int, times: Iterable[int]
     ) -> List[float]:
         """get some fundamental prices.
 

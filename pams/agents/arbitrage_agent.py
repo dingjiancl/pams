@@ -14,6 +14,7 @@ from ..order import Order
 from .high_frequency_agent import HighFrequencyAgent
 
 
+# 套利代理人：在现货市场和其指数市场之间进行套利交易的代理人
 class ArbitrageAgent(HighFrequencyAgent):
     """Arbitrage Agent class.
 
@@ -40,10 +41,11 @@ class ArbitrageAgent(HighFrequencyAgent):
         self.order_threshold_price: float = 1.0
         self.order_time_length: int = 1
 
+    # 对代理人进行初始化设置
     def setup(  # type: ignore
         self,
-        settings: Dict[str, Any],
-        accessible_markets_ids: List[int],
+        settings: Dict[str, Any],  # 反映agent的设置
+        accessible_markets_ids: List[int],  # 可访问的市场
         *args,
         **kwargs,
     ) -> None:
@@ -58,9 +60,12 @@ class ArbitrageAgent(HighFrequencyAgent):
         Returns:
             None
         """
+        # 初始化代理人在可访问市场的资产数量
         super(ArbitrageAgent, self).setup(
             settings, accessible_markets_ids, *args, **kwargs
         )
+        # 从输入参数中获取订单数量、阈值价格和订单时间长度
+        # 将这些参数保存在代理人对象中以备使用
         if "orderVolume" not in settings:
             raise ValueError("orderVolume is required for ArbitrageAgent")
         if not isinstance(settings["orderVolume"], int):
@@ -74,6 +79,7 @@ class ArbitrageAgent(HighFrequencyAgent):
                 raise ValueError("orderTimeLength have to be int")
             self.order_time_length = settings["orderTimeLength"]
 
+    # 提交订单并进行套利交易
     def _submit_orders(self, market: Market) -> List[Union[Order, Cancel]]:
         """internal sub routine for submitting orders by market.
 
@@ -84,26 +90,34 @@ class ArbitrageAgent(HighFrequencyAgent):
             List[Union[Order, Cancel]]: order list.
         """
         orders: List[Union[Order, Cancel]] = []
+        # 检查是否为指数市场and是否可以访问
         if not isinstance(market, IndexMarket):
             return orders
         if not self.is_market_accessible(market_id=market.market_id):
             return orders
+
+        # 获取IndexMarket对象和所有的SpotMarket对象
         index: IndexMarket = market
-        spots: List[Market] = index.get_components()
+        spots: List[Market] = index.get_components()  # 返回_components列表中的所有市场
         if not index.is_running or not index.is_all_markets_running():
             return orders
-        market_index: float = index.get_index()
-        market_price: float = index.get_market_price()
+        market_index: float = index.get_index()  # 获取当前指数市场的指数价格
+        market_price: float = index.get_market_price()  # 获取当前指数市场的实时价格
 
+        # 检查所有组成SpotMarket的组件是否具有相同的outstanding_shares
         if len(set(map(lambda x: x.outstanding_shares, spots))) > 1:
             raise NotImplementedError(
                 "currently, the components must have the same outstanding shares"
             )
 
+        # ----价格差>阈值时，进行套利交易----
+
+        # 如果IndexMarket的价格低于其指数
         if (
             market_price < market_index
             and market_index - market_price > self.order_threshold_price
         ):
+            # 买入IndexMarket
             index_order_volume = len(spots) * self.order_volume
             orders.append(
                 Order(
@@ -116,6 +130,7 @@ class ArbitrageAgent(HighFrequencyAgent):
                     ttl=self.order_time_length,
                 )
             )
+            # 以市场价格买入所有的SpotMarket
             for m in spots:
                 orders.append(
                     Order(
@@ -128,10 +143,12 @@ class ArbitrageAgent(HighFrequencyAgent):
                         ttl=self.order_time_length,
                     )
                 )
+        # 如果IndexMarket的价格高于其指数
         if (
             market_price > market_index
             and market_price - market_index > self.order_threshold_price
         ):
+            # 卖出IndexMarket
             index_order_volume = len(spots) * self.order_volume
             orders.append(
                 Order(
@@ -144,6 +161,7 @@ class ArbitrageAgent(HighFrequencyAgent):
                     ttl=self.order_time_length,
                 )
             )
+            # 以市场价格卖出所有的SpotMarket
             for m in spots:
                 orders.append(
                     Order(
@@ -156,8 +174,11 @@ class ArbitrageAgent(HighFrequencyAgent):
                         ttl=self.order_time_length,
                     )
                 )
+        # ----价格差>阈值时，进行套利交易</>----
+        # 返回订单列表（之前已将新建的订单添加到订单列表中）
         return orders
 
+    # 在所有市场中进行套利交易（调用_submit_orders()）
     def submit_orders(self, markets: List[Market]) -> List[Union[Order, Cancel]]:
         """submit orders to take arbitrage chance.
 
@@ -168,6 +189,12 @@ class ArbitrageAgent(HighFrequencyAgent):
         for market in markets:
             orders.extend(self._submit_orders(market=market))
         return orders
+
+    """
+    list.extend():
+    将一个列表的元素添加到另一个列表中
+    具体的，将参数列表中的每个元素添加到原始列表的末尾
+    """
 
     def __repr__(self) -> str:
         """string representation of FCN agent class.

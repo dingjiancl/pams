@@ -11,6 +11,7 @@ from typing import cast
 from pams.market import Market
 
 
+# 事件钩子类，用于定义何时和哪些事件需要从模拟器中钩出
 class EventHook:
     """Event Hook class.
 
@@ -23,14 +24,15 @@ class EventHook:
         - :class:FundamentalPriceShock
     """
 
+    # 初始化EventHook实例
     def __init__(
         self,
-        event: "EventABC",
-        hook_type: str,
-        is_before: bool,
-        time: Optional[List[int]] = None,
-        specific_class: Optional[Type] = None,
-        specific_instance: Optional[object] = None,
+        event: "EventABC",  # Event类实例，即要钩到模拟器上的事件
+        hook_type: str,  # 事件挂钩的类型。可取值为"order"、"cancel"、"execution"、"session"或"market"。
+        is_before: bool,  # 事件挂钩是在该事件之前还是之后（如果hook_type为"execution"，则必须将其设置为False）
+        time: Optional[List[int]] = None,  # 事件执行的时间
+        specific_class: Optional[Type] = None,  # 表示特定的类。如果指定了此属性，则hook_type必须为"market"。它是Market类的实例。
+        specific_instance: Optional[object] = None,  # 表示特定的实例。如果指定了此属性，则hook_type必须为"market"。它是Market类的实例。
     ):
         """Event Hook initialization.
 
@@ -88,6 +90,7 @@ class EventHook:
         )
 
 
+# 事件的基类，定义了事件是什么
 class EventABC(ABC):
     """event base class (ABC class).
 
@@ -130,6 +133,7 @@ class EventABC(ABC):
             f"session={self.session}>"
         )
 
+    # 用于初始化事件
     def setup(self, settings: Dict[str, Any], *args, **kwargs) -> None:  # type: ignore
         """event setup. Usually be called from simulator/runner automatically.
 
@@ -141,6 +145,7 @@ class EventABC(ABC):
         """
         pass
 
+    # 定义了何时应该钩取该事件，会在模拟器开始时自动钩取
     @abstractmethod
     def hook_registration(self) -> List[EventHook]:
         """Define when this event should be hooked by simulator.

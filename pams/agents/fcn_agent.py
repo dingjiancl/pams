@@ -43,17 +43,19 @@ class FCNAgent(Agent):
     order_margin: float
     time_window_size: int
 
+    # 采用父类Agent的构造方法
     def __init__(
         self,
         agent_id: int,
-        prng: random.Random,
-        simulator: "Simulator",  # type: ignore  # NOQA
-        name: str,
-        logger: Optional[Logger] = None,
+        prng: random.Random,  # 随机数生成器
+        simulator: "Simulator",  # type: ignore  # 市场模拟器
+        name: str,  # 该代理人的名称
+        logger: Optional[Logger] = None,  # 可选的日志记录器
     ):
         super().__init__(agent_id, prng, simulator, name, logger)
         self.is_chart_following = True
 
+    # 判断给定的x是否是一个合法的（非NaN且有限的）浮点数
     def is_finite(self, x: float) -> bool:
         """determine if it is a valid value.
 
@@ -65,10 +67,11 @@ class FCNAgent(Agent):
         """
         return not math.isnan(x) and not math.isinf(x)
 
+    # 对FCNAgent进行初始化设置
     def setup(
         self,
-        settings: Dict[str, Any],
-        accessible_markets_ids: List[int],
+        settings: Dict[str, Any],  # 反映agent的设置
+        accessible_markets_ids: List[int],  # 可访问的市场
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -83,7 +86,9 @@ class FCNAgent(Agent):
         Returns:
             None
         """
-        super().setup(settings=settings, accessible_markets_ids=accessible_markets_ids)
+        super().setup(settings=settings, accessible_markets_ids=accessible_markets_ids)  # 初始化代理人在可访问市场的资产数量
+
+        # ----设置FCNAgent实例的属性（使用生成的随机数）----
         json_random: JsonRandom = JsonRandom(prng=self.prng)
         self.fundamental_weight = json_random.random(
             json_value=settings["fundamentalWeight"]
@@ -92,10 +97,10 @@ class FCNAgent(Agent):
         self.noise_weight = json_random.random(json_value=settings["noiseWeight"])
         self.noise_scale = json_random.random(json_value=settings["noiseScale"])
         self.time_window_size = int(
-            json_random.random(json_value=settings["timeWindowSize"])
+            json_random.random(json_value=settings["timeWindowSize"])  # 用于计算技术面的时间窗口大小
         )
-        self.order_margin = json_random.random(json_value=settings["orderMargin"])
-        if settings.get("marginType") in [None, "fixed"]:
+        self.order_margin = json_random.random(json_value=settings["orderMargin"])  # 限价单的价格浮动范围
+        if settings.get("marginType") in [None, "fixed"]:  # marginType: 限价单的价格调整方式
             self.margin_type = MARGIN_FIXED
         elif settings.get("marginType") == "normal":
             self.margin_type = MARGIN_NORMAL
@@ -103,13 +108,16 @@ class FCNAgent(Agent):
             raise ValueError(
                 "marginType have to be normal or fixed (not specified is also allowed.)"
             )
-        if "meanReversionTime" in settings:
+        if "meanReversionTime" in settings:  # 基本面回归到平均值所需的时间
             self.mean_reversion_time = int(
                 json_random.random(json_value=settings["meanReversionTime"])
             )
         else:
             self.mean_reversion_time = self.time_window_size
+        # ----设置FCNAgent实例的属性（使用生成的随机数）</>----
 
+    # 在所有可用市场中提交订单
+    # 接收参数：所有可访问市场的列表
     def submit_orders(self, markets: List[Market]) -> List[Union[Order, Cancel]]:
         """submit orders based on FCN-based calculation.
 
@@ -121,6 +129,8 @@ class FCNAgent(Agent):
         )
         return orders
 
+    # 在指定的市场中提交订单
+    # 接收参数：一个market对象，表示要交易的市场
     def submit_orders_by_market(self, market: Market) -> List[Union[Order, Cancel]]:
         """submit orders by market (internal usage).
 
@@ -130,6 +140,7 @@ class FCNAgent(Agent):
         Returns:
             List[Union[Order, Cancel]]: order list.
         """
+        # 检查该市场是否可访问，若不可则直接返回一个空列表
         orders: List[Union[Order, Cancel]] = []
         if not self.is_market_accessible(market_id=market.market_id):
             return orders
@@ -141,11 +152,12 @@ class FCNAgent(Agent):
         assert self.chart_weight >= 0.0
         assert self.noise_weight >= 0.0
 
+        # ----计算预期未来价格----
         fundamental_scale: float = 1.0 / max(self.mean_reversion_time, 1)
         fundamental_log_return = fundamental_scale * math.log(
             market.get_fundamental_price() / market.get_market_price()
         )
-        assert self.is_finite(fundamental_log_return)
+        assert self.is_finite(fundamental_log_return)  # 判断是否是一个合法的（非NaN且有限的）浮点数
 
         chart_scale: float = 1.0 / max(time_window_size, 1)
         chart_mean_log_return = chart_scale * math.log(
@@ -156,7 +168,7 @@ class FCNAgent(Agent):
         noise_log_return: float = self.noise_scale * self.prng.gauss(mu=0.0, sigma=1.0)
         assert self.is_finite(noise_log_return)
 
-        expected_log_return: float = (
+        expected_log_return: float = (  # 预期对数收益率
             1.0 / (self.fundamental_weight + self.chart_weight + self.noise_weight)
         ) * (
             self.fundamental_weight * fundamental_log_return
@@ -167,16 +179,23 @@ class FCNAgent(Agent):
         )
         assert self.is_finite(expected_log_return)
 
+        # 预期未来价格
         expected_future_price: float = market.get_market_price() * math.exp(
             expected_log_return * self.time_window_size
         )
         assert self.is_finite(expected_future_price)
+        # ----计算预期未来价格</>----
 
+        # ----根据不同的self.margin_type计算订单价格，并将新建的订单添加到订单列表中，并返回----
+
+        # ----如果使用的是MARGIN_FIXED（生成的订单的价格为定值）----
         if self.margin_type == MARGIN_FIXED:
-            assert 0.0 <= self.order_margin <= 1.0
+            assert 0.0 <= self.order_margin <= 1.0  # 对self.order_margin进行范围限定
 
-            order_volume: int = 1
+            order_volume: int = 1  # 订单数量设为1
 
+            # 市场价格 < 预期未来价格时，下买单（限价单）
+            # 价格为 预期未来价格 * (1 - self.order_margin)
             if expected_future_price > market.get_market_price():
                 order_price = expected_future_price * (1 - self.order_margin)
                 orders.append(
@@ -190,6 +209,8 @@ class FCNAgent(Agent):
                         ttl=self.time_window_size,
                     )
                 )
+            # 市场价格 > 预期未来价格时，下卖单（限价单）
+            # 价格为 预期未来价格 * (1 + self.order_margin)
             if expected_future_price < market.get_market_price():
                 order_price = expected_future_price * (1 + self.order_margin)
                 orders.append(
@@ -203,16 +224,20 @@ class FCNAgent(Agent):
                         ttl=self.time_window_size,
                     )
                 )
+        # ----如果使用的是MARGIN_FIXED（生成的订单的价格为定值）</>----
 
+        # ----如果使用的是MARGIN_NORMAL（生成的订单的价格为一个随机值）----
         if self.margin_type == MARGIN_NORMAL:
-            assert self.order_margin >= 0.0
+            assert self.order_margin >= 0.0  # 确保正态分布的sigma合法
+            # 订单价格 = 期望未来价格 + 价格波动量
             order_price = (
                 expected_future_price
                 + self.prng.gauss(mu=0.0, sigma=1.0) * self.order_margin
             )
             order_volume = 1
-            assert order_price >= 0.0
+            assert order_price >= 0.0  # 订单价格不可为负数
             assert order_volume > 0
+            # 市场价格 < 预期未来价格时，下买单（限价单）
             if expected_future_price > market.get_market_price():
                 orders.append(
                     Order(
@@ -225,6 +250,7 @@ class FCNAgent(Agent):
                         ttl=self.time_window_size,
                     )
                 )
+            # 市场价格 > 预期未来价格时，下卖单（限价单）
             if expected_future_price < market.get_market_price():
                 orders.append(
                     Order(
@@ -237,8 +263,11 @@ class FCNAgent(Agent):
                         ttl=self.time_window_size,
                     )
                 )
+        # ----如果使用的是MARGIN_NORMAL（生成的订单的价格为一个随机值）</>----
         return orders
+        # ----根据不同的self.margin_type计算订单价格，并将新建的订单添加到订单列表中，并返回</>----
 
+    # 代理类的字符串表示形式
     def __repr__(self) -> str:
         """string representation of FCN agent class.
 

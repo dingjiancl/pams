@@ -7,17 +7,19 @@ from typing import Optional
 from .logs.base import Logger
 
 
+# 一个模拟的会话（一次模拟实验的期间）
 class Session:
     """Session management class."""
 
+    # 构造函数，初始化Session实例的属性
     def __init__(
         self,
-        session_id: int,
-        prng: random.Random,
-        session_start_time: int,
-        simulator: "Simulator",  # type: ignore  # NOQA
-        name: str,
-        logger: Optional[Logger] = None,
+        session_id: int,  # 会话ID
+        prng: random.Random,  # 随机数生成器
+        session_start_time: int,  # 会话开始的时间戳
+        simulator: "Simulator",  # type: ignore # 该会话所在的Simulator实例
+        name: str,  # 会话名称，用于识别一个会话
+        logger: Optional[Logger] = None,  # 该会话的记录器实例
     ) -> None:
         """initialization.
 
@@ -63,6 +65,7 @@ class Session:
             f"logger={self.logger.__str__()}>"
         )
 
+    # 从输入的settings参数中读取一些参数，设置属性值
     def setup(self, settings: Dict[str, Any], *args, **kwargs) -> None:  # type: ignore  # NOQA
         """setup session configuration from setting format.
 
@@ -80,34 +83,34 @@ class Session:
             )
         if not isinstance(settings["iterationSteps"], int):
             raise ValueError("iterationSteps must be int")
-        self.iteration_steps = int(settings["iterationSteps"])
+        self.iteration_steps = int(settings["iterationSteps"])  # 每次迭代Simulator时，会话的步数（即会话持续的时间）
         if "withOrderPlacement" not in settings:
             raise ValueError(
                 "for each element in simulation.sessions must have withOrderPlacement"
             )
         if not isinstance(settings["withOrderPlacement"], bool):
             raise ValueError("withOrderPlacement must be boolean")
-        self.with_order_placement = settings["withOrderPlacement"]
+        self.with_order_placement = settings["withOrderPlacement"]  # 是否允许订单提交到市场
         if "withOrderExecution" not in settings:
             raise ValueError(
                 "for each element in simulation.sessions must have withOrderExecution"
             )
         if not isinstance(settings["withOrderExecution"], bool):
             raise ValueError("withOrderExecution must be boolean")
-        self.with_order_execution = settings["withOrderExecution"]
+        self.with_order_execution = settings["withOrderExecution"]  # 是否执行订单撮合
         if "withPrint" not in settings:
             raise ValueError(
                 "for each element in simulation.sessions must have withPrint"
             )
         if not isinstance(settings["withPrint"], bool):
             raise ValueError("withPrint must be boolean")
-        self.with_print = settings["withPrint"]
+        self.with_print = settings["withPrint"]  # 是否输出会话信息
         if "maxNormalOrders" in settings:
             # TODO: check non-negative
-            self.max_normal_orders = settings["maxNormalOrders"]
+            self.max_normal_orders = settings["maxNormalOrders"]  # 允许提交到市场的最大普通订单数量
         if "maxHighFrequencyOrders" in settings:
             # TODO: check non-negative
-            self.max_high_frequency_orders = settings["maxHighFrequencyOrders"]
+            self.max_high_frequency_orders = settings["maxHighFrequencyOrders"]  # 允许提交到市场的最大高频订单数量
             if "maxHifreqOrders" in settings:
                 raise ValueError(
                     "maxHifreqOrders is replaced to maxHighFrequencyOrders in pams. Please delete it."
@@ -117,7 +120,7 @@ class Session:
             warnings.warn(
                 "maxHifreqOrders is replaced to maxHighFrequencyOrders in pams."
             )
-            self.max_high_frequency_orders = settings["maxHifreqOrders"]
+            self.max_high_frequency_orders = settings["maxHifreqOrders"]  # 高频订单提交率
         # TODO: check malOrders + maxHighFrequencyOrders >= 1
         if "highFrequencySubmitRate" in settings:
             # TODO: check non-negative
