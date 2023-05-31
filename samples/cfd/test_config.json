@@ -1,0 +1,101 @@
+{
+    "simulation": {
+        "markets": ["underlying_Market1", "underlying_Market2", "underlying_Market3", "CFDMarket"],
+        "agents": ["FCNAgents", "CFDMarketFCNAgent", "CFDMarketMakerAgent"],
+        "sessions": [
+			{	"sessionName": 0,
+				"iterationSteps": 100,
+				"withOrderPlacement": true,
+				"withOrderExecution": false,
+				"withPrint": true,
+				"hifreqSubmitRate": 1.0
+			},
+			{	"sessionName": 1,
+				"iterationSteps": 500,
+				"withOrderPlacement": true,
+				"withOrderExecution": true,
+				"withPrint": true
+			}
+		]
+    },
+    "underlying_Market1": {
+        "class": "Market",
+        "tickSize": 0.00001,
+        "fundamentalPrice": 100,
+		"fundamentalDrift": 0.1,
+        "fundamentalVolatility": 0.001
+    },
+    "underlying_Market2": {
+        "class": "Market",
+        "tickSize": 0.00001,
+        "fundamentalPrice": 300,
+		"fundamentalDrift": -0.1,
+        "fundamentalVolatility": 0.001
+    },
+    "underlying_Market3": {
+        "class": "Market",
+        "tickSize": 0.00001,
+        "fundamentalPrice": 200,
+		"fundamentalDrift": -0.001,
+        "fundamentalVolatility": 0.0005
+    },
+    "CFDMarket": {
+        "class": "CFDMarket",
+        "tickSize": 0.00001,
+        "marketPrice": 300.0,
+        "underlyingMarket": "underlying_Market1"
+    },
+    "FCNAgents": {
+		"class": "FCNAgent",
+		"numAgents": 100,
+		"markets": ["underlying_Market1", "underlying_Market2", "underlying_Market3"],
+		"assetVolume": 50,
+		"cashAmount": 10000,
+		"fundamentalWeight": {"expon": [1.0]},
+		"chartWeight": {"expon": [0.0]},
+		"noiseWeight": {"expon": [1.0]},
+		"meanReversionTime":{"uniform":[50,100]},
+		"noiseScale": 0.001,
+		"timeWindowSize": [100, 200],
+		"orderMargin": [0.0, 0.1]
+	},
+    "CFDSimpleAgents": {
+        "class": "CFDSimpleAgent",
+        "numAgents": 10,
+        "markets": ["CFDMarket"],
+        "assetVolume": 0,
+		"cashAmount": 10000,
+        "leverage_rate": 0.1
+    },
+    "CFDSimpleMarketMakerAgent": {
+        "class": "CFDSimpleMarketMakerAgent",
+        "numAgents": 1,
+        "markets": ["underlying_Market1", "underlying_Market2", "underlying_Market3", "CFDMarket"],
+        "assetVolume": 0,
+		"cashAmount": 100000,
+        "bid_ask_spread": 1
+    },
+    "CFDMarketMakerAgent": {
+        "class": "CFDMarketMakerAgent",
+        "numAgents": 1,
+        "markets": ["underlying_Market1", "CFDMarket"],
+        "assetVolume": 0,
+		"cashAmount": 100000,
+        "bidOrderVolume": 1,
+        "askOrderVolume": 1,
+        "bidSpread": 1,
+        "askSpread": 1,
+        "orderTimeLengthSpread": 1,
+        "orderTimeLengthHedge": 1,
+        "rateHedgeBuy": 1,
+        "rateHedgeSell": 1
+    },
+    "CFDMarketFCNAgent": {
+        "class": "CFDSimpleAgent",
+        "numAgents": 10,
+        "markets": ["CFDMarket"],
+        "assetVolume": 0,
+		"cashAmount": 10000,
+        "leverage_rate": 0.1
+    }
+}
